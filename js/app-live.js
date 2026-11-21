@@ -243,8 +243,8 @@ function arrow(x, y1, y2, col, dpr) {
   const d = Math.sign(y2 - y1) || 1, s = 14 * dpr;
   octx.beginPath(); octx.moveTo(x, y2 + d * s * .3); octx.lineTo(x - s, y2 - d * s); octx.lineTo(x + s, y2 - d * s); octx.closePath(); octx.fill();
 }
-// LAION aesthetic scores on phone photos mostly fall between ~3.5 and ~7; stretch to a friendlier 0–10
-function aesToTen(a) { return clamp((a - 3.5) / 3.5 * 10, 0, 10); }
+// LAION aesthetic scores: casual snaps ~4–5, good travel photos ~6–7.5. Map 4..8 onto 0..10
+function aesToTen(a) { return clamp((a - 4) / 4 * 10, 0, 10); }
 function aesWord(a) { const s = aesToTen(a); return s >= 7.5 ? "great" : s >= 6 ? "good" : s >= 4 ? "decent" : "snapshot"; }
 
 document.querySelectorAll("#foodSeg button").forEach(b => b.onclick = () => {

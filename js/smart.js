@@ -2,7 +2,7 @@
 // - scene detection: cosine similarity to precomputed scene text embeddings (models/scenes.json)
 // - aesthetic score: LAION linear head on the normalised embedding (models/aesthetic_vitb32.json)
 // The model (~90 MB) downloads once from Hugging Face and is cached by the browser.
-const TJS = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.web.min.js";
+const TJS = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js";
 
 let T = null, proc = null, vision = null, scenes = null, aes = null, loading = null;
 
