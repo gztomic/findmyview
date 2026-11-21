@@ -15,6 +15,7 @@
   "use strict";
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const DEG = 180 / Math.PI;
+  const P = { tex: 0.8, up: 0.8, tilt: 12 };   // candidate ranking weights (tuned on refs/beach)
 
   function analyze(img) {
     const W = img.width, H = img.height, d = img.data, N = W * H;
@@ -45,15 +46,16 @@
     /* ---- horizon: strongest straight colour step, searched over small tilts ---- */
     const k = Math.max(2, Math.round(H * 0.035));
     const y0 = Math.round(H * 0.06), y1 = Math.round(H * 0.94);
-    let best = { s: 0, y: -1, a: 0 };
+    const cands = [];
     const rowR = new Float32Array(H), rowG = new Float32Array(H), rowB = new Float32Array(H), rowL = new Float32Array(H), rowC = new Float32Array(H);
-    for (let a = -10; a <= 10; a += 1) {
+    const prof = new Float32Array(H);
+    for (let a = -8; a <= 8; a += 1) {
       const t = Math.tan(a / DEG);
-      rowR.fill(0); rowG.fill(0); rowB.fill(0); rowL.fill(0); rowC.fill(0);
+      rowR.fill(0); rowG.fill(0); rowB.fill(0); rowL.fill(0); rowC.fill(0); prof.fill(0);
       // accumulate along slanted lines: line index y = round(py - (px - W/2) * t)
       for (let py = 0; py < H; py++) {
         const base = py * W;
-        for (let px = 0; px < W; px += 1) {
+        for (let px = 0; px < W; px++) {
           const y = Math.round(py - (px - W / 2) * t);
           if (y < 0 || y >= H) continue;
           const i = base + px;
@@ -70,45 +72,107 @@
         }
         if (na < k * 0.7 || nb < k * 0.7) continue;
         ar /= na; ag /= na; ab /= na; al /= na; br /= nb; bg /= nb; bb /= nb; bl /= nb;
-        let s = Math.hypot(ar - br, ag - bg, ab - bb);
+        let sc = Math.hypot(ar - br, ag - bg, ab - bb);
         // sky is normally brighter than the sea right under it; sand is brighter than the sea above it
-        s *= al >= bl ? 1.2 : 0.8;
-        if (s > best.s) best = { s, y, a };
+        sc *= al >= bl ? 1.15 : 0.85;
+        prof[y] = sc;
       }
+      // keep local maxima of this angle's profile
+      for (let y = 1; y < H - 1; y++) if (prof[y] > 6 && prof[y] >= prof[y - 1] && prof[y] > prof[y + 1]) cands.push({ s: prof[y], y, a });
     }
-    if (best.y >= 0) {
-      out.horizon = +(best.y / H).toFixed(4);
-      out.tilt = best.a;
-      out.hConf = +clamp((best.s - 8) / 40, 0, 1).toFixed(3);
-      // refine tilt to sub-degree using per-strip edge positions
-      const strips = 8, ys = [], xs = [];
-      const win = Math.max(3, Math.round(H * 0.06)), t = Math.tan(best.a / DEG);
-      for (let s = 0; s < strips; s++) {
-        const xa = Math.floor(s * W / strips), xb = Math.floor((s + 1) * W / strips), xc = (xa + xb) / 2;
-        const yc = Math.round(best.y + (xc - W / 2) * t);
-        let bestE = 0, bestY = -1;
-        for (let y = Math.max(1, yc - win); y < Math.min(H - 1, yc + win); y++) {
+    cands.sort((p, q) => q.s - p.s);
+    const pool = [];
+    for (const c of cands) {
+      if (pool.length >= 10 || c.s < cands[0].s * 0.3) break;
+      if (!pool.some(p => Math.abs(p.y - c.y) < H * 0.04 && Math.abs(p.a - c.a) <= 3)) pool.push(c);
+    }
+    // straightness: how many vertical strips have their own strongest edge right on the candidate line
+    const STR = 12, win = Math.max(3, Math.round(H * 0.05));
+    function stripFit(c) {
+      const t = Math.tan(c.a / DEG), xs = [], ys = [];
+      let hit = 0;
+      for (let s = 0; s < STR; s++) {
+        const xa = Math.floor(s * W / STR), xb = Math.floor((s + 1) * W / STR), xc = (xa + xb) / 2;
+        const yc = c.y + (xc - W / 2) * t;
+        let bestE = 0, bestY = -1, atLine = 0;
+        for (let y = Math.max(1, Math.round(yc) - win); y < Math.min(H - 1, Math.round(yc) + win); y++) {
           let e = 0;
           for (let x = xa; x < xb; x++) {
             const i = y * W + x, j = (y - 1) * W + x;
             e += Math.abs(R[i] - R[j]) + Math.abs(G[i] - G[j]) + Math.abs(B[i] - B[j]);
           }
+          e /= (xb - xa);
+          if (Math.abs(y - 0.5 - yc) <= 1.6 && e > atLine) atLine = e;
           if (e > bestE) { bestE = e; bestY = y - 0.5; }
         }
-        if (bestY >= 0) { xs.push(xc); ys.push(bestY); }
+        if (atLine > 6 && atLine >= bestE * 0.5) hit++;
+        if (bestY >= 0 && bestE > 6) { xs.push(xc); ys.push(bestY); }
       }
-      if (xs.length >= 5) {
-        // robust line fit: drop the worst residuals once
-        let fit = lsq(xs, ys);
-        const res = xs.map((x, i) => Math.abs(ys[i] - (fit.m * x + fit.c)));
-        const cut = [...res].sort((a, b) => a - b)[Math.floor(res.length * 0.7)];
-        const fx = [], fy = [];
-        xs.forEach((x, i) => { if (res[i] <= cut + 0.5) { fx.push(x); fy.push(ys[i]); } });
-        if (fx.length >= 4) fit = lsq(fx, fy);
-        const a2 = Math.atan(fit.m) * DEG;
-        if (Math.abs(a2 - best.a) < 2.5) {
-          out.tilt = +a2.toFixed(2);
-          out.horizon = +clamp((fit.m * W / 2 + fit.c) / H, 0, 1).toFixed(4);
+      return { hit: hit / STR, xs, ys };
+    }
+    // texture (local luminance variation) in a band of rows, following the candidate's tilt
+    function texture(c, from, to) {
+      const t = Math.tan(c.a / DEG); let sum = 0, n = 0;
+      for (let x = 0; x < W - 1; x += 1) {
+        const off = (x - W / 2) * t;
+        for (let dy = from; dy < to; dy++) {
+          const y = Math.round(c.y + off + dy);
+          if (y < 0 || y >= H - 1) continue;
+          const i = y * W + x;
+          sum += Math.abs(L[i] - L[i + 1]) + Math.abs(L[i] - L[i + W]); n++;
+        }
+      }
+      return n ? sum / n : 0;
+    }
+    let best = null;
+    const band = Math.max(3, Math.round(H * 0.08));
+    for (const c of pool) {
+      const f = stripFit(c);
+      c.straight = f.hit; c.fit = f;
+      // sky above a horizon is smoother than the sea below it (sand below the sea is smoother than the sea)
+      const ta = texture(c, -band - 1, -1), tb = texture(c, 2, band + 2);
+      c.tex = clamp((tb + 1.5) / (ta + 1.5), 0.35, 3);
+      c.score = c.s * (0.25 + f.hit) * Math.pow(c.tex, P.tex) * (1 + P.up * (1 - c.y / H)) / (1 + (c.a / P.tilt) ** 2);
+      if (!best || c.score > best.score) best = c;
+    }
+    if (best) {
+      out.horizon = +(best.y / H).toFixed(4);
+      out.tilt = best.a;
+      out.hConf = +clamp((best.straight - 0.2) / 0.6, 0, 1).toFixed(3) * clamp(best.s / 25, 0, 1);
+      out.hConf = +out.hConf.toFixed(3);
+      // refine: RANSAC over edge peaks in vertical strips near the chosen line. A headland or island
+      // sitting on the horizon only covers part of the width, so the level sea segment usually wins.
+      const t = Math.tan(best.a / DEG), pts = [], RW = Math.max(4, Math.round(H * 0.05));
+      for (let sI = 0; sI < STR; sI++) {
+        const xa = Math.floor(sI * W / STR), xb = Math.floor((sI + 1) * W / STR), xc = (xa + xb) / 2;
+        const yc = best.y + (xc - W / 2) * t, prof = [];
+        for (let y = Math.max(1, Math.round(yc) - RW); y < Math.min(H - 1, Math.round(yc) + RW); y++) {
+          let e = 0;
+          for (let x = xa; x < xb; x++) { const i = y * W + x, j = (y - 1) * W + x; e += Math.abs(R[i] - R[j]) + Math.abs(G[i] - G[j]) + Math.abs(B[i] - B[j]); }
+          prof.push([y - 0.5, e / (xb - xa)]);
+        }
+        const peaks = prof.filter((p, i) => p[1] > 6 && (i === 0 || p[1] >= prof[i - 1][1]) && (i === prof.length - 1 || p[1] > prof[i + 1][1]))
+          .sort((p, q) => q[1] - p[1]).slice(0, 3);
+        peaks.forEach(p => pts.push({ s: sI, x: xc, y: p[0], e: p[1] }));
+      }
+      let bestL = null;
+      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+        const p = pts[i], q = pts[j]; if (p.s === q.s) continue;
+        const m = (q.y - p.y) / (q.x - p.x), ang = Math.atan(m) * DEG; if (Math.abs(ang) > 10) continue;
+        const c0 = p.y - m * p.x;
+        const inl = new Map();
+        for (const r of pts) if (Math.abs(r.y - (m * r.x + c0)) <= 1.2) { const o = inl.get(r.s); if (!o || r.e > o.e) inl.set(r.s, r); }
+        if (inl.size < 4) continue;
+        let sc = 0; inl.forEach(r => sc += Math.sqrt(r.e));
+        sc /= 1 + (ang / 6) ** 2;
+        if (!bestL || sc > bestL.sc) bestL = { sc, inl: [...inl.values()] };
+      }
+      if (bestL) {
+        const fit = lsq(bestL.inl.map(r => r.x), bestL.inl.map(r => r.y));
+        const yMid = (fit.m * W / 2 + fit.c) / H;
+        if (Math.abs(yMid - best.y / H) < 0.04) {
+          out.tilt = +(Math.atan(fit.m) * DEG).toFixed(2);
+          out.horizon = +clamp(yMid, 0, 1).toFixed(4);
         }
       }
     }
@@ -177,6 +241,6 @@
     return { m, c: (sy - m * sx) / n };
   }
 
-  const api = { analyze };
+  const api = { analyze, P };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.SceneAnalyzer = api;
 })(typeof self !== "undefined" ? self : this);
