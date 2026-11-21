@@ -1,0 +1,34 @@
+name: Train correction model
+on:
+  workflow_dispatch:
+    inputs:
+      per_category: { description: "photos per scene", default: "120" }
+      epochs: { description: "epochs", default: "6" }
+permissions:
+  contents: write
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && pip install pillow onnx onnxscript onnxruntime numpy
+      - uses: actions/cache@v4
+        with:
+          path: data/train
+          key: train-photos-${{ hashFiles('tools/train/categories.json') }}-${{ inputs.per_category }}
+          restore-keys: train-photos-${{ hashFiles('tools/train/categories.json') }}-
+      - name: Collect CC0 photos
+        run: python3 tools/train/fetch_dataset.py --out data/train --per-category ${{ inputs.per_category }}
+      - name: Train
+        run: python3 tools/train/train_correction.py --data data/train --epochs ${{ inputs.epochs }} --workers 3 --out models/correction
+      - name: Commit model
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898729+github-actions[bot]@users.noreply.github.com"
+          git add models/correction
+          git commit -m "Train correction model (${{ inputs.per_category }}/scene, ${{ inputs.epochs }} epochs)" && git pull --rebase && git push
+      - uses: actions/upload-artifact@v4
+        with: { name: dataset-index, path: data/train/index.jsonl }

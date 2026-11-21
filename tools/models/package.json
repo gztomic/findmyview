@@ -1,0 +1,2 @@
+{ "name": "findmyview-models", "private": true, "type": "module",
+  "dependencies": { "@huggingface/transformers": "4.3.2" } }

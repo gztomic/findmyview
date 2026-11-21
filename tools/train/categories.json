@@ -1,0 +1,15 @@
+{
+  "note": "Search queries per scene for collecting CC0 training photos. Scene ids match tools/models/scenes.src.json.",
+  "categories": {
+    "beach":     ["beach", "ocean shore", "tropical beach", "sea waves"],
+    "sunset":    ["sunset", "sunrise", "golden hour sky"],
+    "landscape": ["mountain landscape", "lake mountains", "valley", "countryside hills", "desert"],
+    "city":      ["city street", "city skyline", "old town street", "market street"],
+    "building":  ["architecture", "temple", "cathedral", "building facade", "monument", "castle"],
+    "interior":  ["interior", "cafe interior", "hotel room", "museum"],
+    "food":      ["food", "breakfast", "dessert", "coffee cup", "street food", "dinner plate", "cocktail"],
+    "closeup":   ["flower close up", "leaves macro", "succulent"],
+    "animal":    ["bird", "cat", "dog", "wildlife"],
+    "night":     ["night city", "city lights night", "night street"]
+  }
+}

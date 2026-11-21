@@ -1,0 +1,16 @@
+{
+  "note": "Scene types for zero-shot detection. Each scene's prompts are embedded with the CLIP text encoder and averaged. 'coach' picks which coaching rules the app applies.",
+  "scenes": [
+    { "id": "beach",     "label": "Beach & ocean",   "coach": "horizon",      "prompts": ["a photo of a beach", "ocean waves on a sandy beach", "a tropical beach with palm trees", "the sea seen from the shore"] },
+    { "id": "sunset",    "label": "Sunset & sky",    "coach": "horizon",      "prompts": ["a photo of a sunset", "a sunrise over the water", "a golden hour sky", "a dramatic sky at dusk"] },
+    { "id": "landscape", "label": "Landscape",       "coach": "horizon",      "prompts": ["a mountain landscape", "a scenic valley", "a lake surrounded by mountains", "rolling green hills", "a desert landscape", "rice terraces"] },
+    { "id": "city",      "label": "City & street",   "coach": "architecture", "prompts": ["a city skyline", "a busy city street", "a narrow old town alley", "a street market", "a city square"] },
+    { "id": "building",  "label": "Building & landmark", "coach": "architecture", "prompts": ["a famous landmark", "the facade of a building", "a temple", "a cathedral", "a monument", "a palace", "a skyscraper"] },
+    { "id": "interior",  "label": "Interior",        "coach": "architecture", "prompts": ["the interior of a building", "a hotel room", "a cafe interior", "a museum hall", "a temple interior"] },
+    { "id": "food",      "label": "Food & drink",    "coach": "food",         "prompts": ["a plate of food", "a dish at a restaurant", "a cup of coffee and a pastry", "street food", "a cocktail on a bar", "a bowl of noodles", "a table full of dishes seen from above"] },
+    { "id": "people",    "label": "People",          "coach": "people",       "prompts": ["a portrait of a person", "a selfie", "a group of friends posing for a photo", "a person standing in front of a landmark"] },
+    { "id": "closeup",   "label": "Close-up & nature", "coach": "subject",    "prompts": ["a close-up of a flower", "a close-up photo of leaves", "a macro photo", "a close-up of an object"] },
+    { "id": "animal",    "label": "Animals",         "coach": "subject",      "prompts": ["a photo of a wild animal", "a photo of a cat", "a photo of a dog", "a bird"] },
+    { "id": "night",     "label": "Night",           "coach": "night",        "prompts": ["a city at night", "night lights", "fireworks", "a night market"] }
+  ]
+}

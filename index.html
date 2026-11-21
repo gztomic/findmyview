@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b1416">
-<title>Find My View — Scenery Shot Coach</title>
+<title>Find My View: Travel Shot Coach</title>
 <style>
 :root{--bg:#0b1416;--card:#13201f;--line:#22332f;--tx:#eef5f2;--mut:#93a8a2;--acc:#5fd0c4;--sand:#e6c88f;--ok:#7fd49b;--warn:#f0a35e;--bad:#ef7b6b}
 *{box-sizing:border-box}
@@ -69,24 +69,71 @@ textarea{width:100%;min-height:90px;background:#071010;color:var(--tx);border:1p
 .note{border-left:3px solid var(--warn);padding:8px 10px;background:#1c2420;border-radius:8px;font-size:13px;margin-top:10px}
 .credits{font-size:11px;color:var(--mut);margin-top:8px}
 .credits a{color:var(--mut)}
+
+.smartBar{display:flex;gap:10px;align-items:center;justify-content:space-between;background:#0f1b1a;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.smartStatus{font-size:12.5px;color:var(--mut)}
+.smartStatus.on{color:var(--ok)}
+.smartBtn{padding:8px 12px;font-size:13px;flex:none}
+.burst{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.bframe{position:relative;padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;background:#000}
+.bframe.best{border-color:var(--ok)}
+.bframe img{width:100%;display:block}
+.bframe b,#shots b{position:absolute;left:4px;bottom:4px;font-size:11px;background:#000b;color:#fff;padding:1px 6px;border-radius:6px}
+#shots a{position:relative;display:block}
+.seg.small button{padding:6px 8px;font-size:13px}
+
 </style>
 </head>
 <body>
 <header>
-  <h1>Find My <span>View</span> <small>v1 · beach &amp; ocean</small></h1>
+  <h1>Find My <span>View</span> <small>v2 · any scene</small></h1>
   <div class="sub" id="profileLine">Loading…</div>
 </header>
 <nav>
-  <button data-tab="style" class="on">Your style</button>
-  <button data-tab="live">Live coach</button>
-  <button data-tab="check">Check a shot</button>
+  <button data-tab="live" class="on">Coach</button>
+  <button data-tab="check">Check</button>
+  <button data-tab="style">Beach style</button>
+  <button data-tab="data">Data</button>
 </nav>
 <main>
 
-<section id="style" class="on">
+<section id="live" class="on">
+  <div class="smartBar"><span class="smartStatus"></span><button class="btn ghost smartBtn">Turn on</button></div>
+  <div class="seg small" id="sceneSeg"></div>
+  <div id="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="overlay"></canvas>
+    <div id="hud"><div id="cue">Tap Start camera</div><div id="cue2">Point at anything: beach, food, a building. The coach picks the right rules for the scene.</div></div>
+  </div>
+  <div class="seg small" id="foodSeg" style="display:none">
+    <button data-mode="auto" class="on">Auto angle</button><button data-mode="overhead">Overhead</button><button data-mode="angle">45°</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn" id="startBtn" style="flex:2">Start camera</button>
+    <button class="btn ghost" id="burstBtn" style="flex:2" disabled>Smart burst</button>
+    <button class="btn ghost" id="snapBtn" style="flex:1" disabled>Snap</button>
+  </div>
+  <div id="burst"></div>
+  <div class="mut" style="margin-top:10px">Smart burst grabs 8 frames, scores them and suggests the best. Line the shot up here, then take the real photo with your camera app from the same spot. Snaps here are video quality.</div>
+  <div id="shots" style="margin-top:10px"></div>
+</section>
+
+<section id="check">
+  <div class="smartBar"><span class="smartStatus"></span><button class="btn ghost smartBtn">Turn on</button></div>
   <div class="card">
-    <h2>Build your scenery profile</h2>
-    <div class="mut">Add 10–50 beach and ocean photos you love: your own or ones you'd like to recreate. The app learns where you like the horizon, how much beach you keep, the light and the framing. Everything is analyzed on this phone and nothing is uploaded.</div>
+    <h2>Check a shot</h2>
+    <div class="mut">Pick any travel photo: food, buildings, beaches, cities. You get the scene type, a look score and what to fix next time.</div>
+    <div class="seg small" id="checkSceneSeg"></div>
+    <label class="btn full" style="margin-top:4px">Take or choose a photo<input type="file" id="checkInput" accept="image/*"></label>
+  </div>
+  <canvas id="checkView"></canvas>
+  <div class="card" id="checkResult" style="display:none"></div>
+</section>
+
+<section id="style">
+  <div class="card">
+    <h2>Build your beach style</h2>
+    <div class="mut">Add 10–50 beach and ocean photos you love. The coach learns where you like the horizon, how much beach you keep, the light and the framing, and uses it whenever it sees a beach. Everything is analyzed on this phone and nothing is uploaded.</div>
     <div class="row" style="margin-top:12px">
       <label class="btn">Add photos<input type="file" id="refInput" accept="image/*" multiple></label>
       <button class="btn ghost" id="starterBtn">Use starter photos</button>
@@ -98,7 +145,7 @@ textarea{width:100%;min-height:90px;background:#071010;color:var(--tx);border:1p
   </div>
   <div class="card">
     <h2>Your looks</h2>
-    <div class="mut">Your photos grouped into distinct compositions. Each look gets its own horizon band and beach target in Live coach. Pick how many looks, or leave it on Auto.</div>
+    <div class="mut">Your photos grouped into distinct compositions. Each look gets its own horizon band and beach target.</div>
     <div class="seg" id="kSeg"></div>
     <div id="looks"></div>
   </div>
@@ -117,35 +164,23 @@ textarea{width:100%;min-height:90px;background:#071010;color:var(--tx);border:1p
   </div>
 </section>
 
-<section id="live">
-  <div class="seg" id="lookSeg"></div>
-  <div id="stage">
-    <video id="video" playsinline muted autoplay></video>
-    <canvas id="overlay"></canvas>
-    <div id="hud"><div id="cue">Tap Start</div><div id="cue2">Level the horizon, slide it into the green band, then match the beach meter on the right.</div></div>
-  </div>
-  <div class="row" style="margin-top:10px">
-    <button class="btn" id="startBtn" style="flex:1">Start camera</button>
-    <button class="btn ghost" id="snapBtn" style="flex:1" disabled>Capture</button>
-  </div>
-  <div class="note" id="liveNote" style="display:none"></div>
-  <div class="mut" style="margin-top:10px">Line it up here, then take the real shot with your camera app from the same spot. Capture here saves a video-quality frame.</div>
-  <div id="shots"></div>
-</section>
-
-<section id="check">
+<section id="data">
   <div class="card">
-    <h2>Check a shot</h2>
-    <div class="mut">Take a photo or pick one you just took. You'll get a score against your closest look and what to change for the next one.</div>
-    <label class="btn full" style="margin-top:12px">Take or choose a photo<input type="file" id="checkInput" accept="image/*"></label>
+    <h2>Your taste data</h2>
+    <div class="mut">Every time you pick a frame from a Smart burst, the app logs which frame you chose over the others: scene, measurements and a compact image fingerprint (no photos). This is the training data for a model of <i>your</i> taste.</div>
+    <div id="dataStats" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn ghost" id="exportPrefs">Export JSON</button>
+      <button class="btn ghost" id="clearPrefs">Delete all</button>
+    </div>
   </div>
-  <canvas id="checkView"></canvas>
-  <div class="card" id="checkResult" style="display:none"></div>
 </section>
 
 </main>
 
 <script src="analyze.js"></script>
+<script src="js/geometry.js"></script>
+<script src="js/coach.js"></script>
 <script>
 "use strict";
 const $ = s => document.querySelector(s);
@@ -163,8 +198,8 @@ let looks = [];
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
   document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === b.dataset.tab));
-  if (b.dataset.tab !== "live") stopLive();
-  if (b.dataset.tab === "live") renderLookSeg();
+  if (b.dataset.tab !== "live" && typeof stopLive === "function") stopLive();
+  if (b.dataset.tab === "live" && typeof onLiveTab === "function") onLiveTab();
 });
 
 /* ---------- persistence ---------- */
@@ -438,173 +473,13 @@ function assess(f, look) {
   return { score: Math.round(clamp(100 - pen, 0, 100)), fixes };
 }
 
-/* ---------- live coach ---------- */
-const video = $("#video"), ov = $("#overlay"), octx = ov.getContext("2d");
-const small = document.createElement("canvas"); small.width = AW; small.height = AH;
-const sctx = small.getContext("2d", { willReadFrequently: true });
-let stream = null, raf = 0, lastA = 0, live = null, chosen = "auto";
-function renderLookSeg() {
-  const seg = $("#lookSeg"); seg.innerHTML = "";
-  if (!looks.length) { seg.style.display = "none"; return; } seg.style.display = "";
-  const opts = [{ id: "auto", name: "Auto" }, ...looks];
-  opts.forEach(l => {
-    const b = document.createElement("button"); b.textContent = l.id === "auto" ? "Auto" : l.name.split(",")[0] + (looks.filter(x => x.name.split(",")[0] === l.name.split(",")[0]).length > 1 ? " " + (looks.indexOf(l) + 1) : "");
-    b.className = chosen === l.id ? "on" : ""; b.onclick = () => { chosen = l.id; renderLookSeg(); }; seg.appendChild(b);
-  });
-  const note = $("#liveNote"), all = profile && profile.items.length ? statsFor(profile.items) : null;
-  if (all && all.portraitShare < .4) { note.style.display = ""; note.textContent = "Most of your favourites are landscape. Line it up here in portrait, then turn the phone sideways for the real shot from the same spot, or crop."; }
-  else note.style.display = "none";
-}
-function cover(srcW, srcH, dstW, dstH) { const s = Math.max(dstW / srcW, dstH / srcH), w = dstW / s, h = dstH / s; return [(srcW - w) / 2, (srcH - h) / 2, w, h]; }
-async function startLive() {
-  if (!profile || !looks.length) { $("#cue").textContent = "Build a profile first"; $("#cue2").textContent = "Go to Your style and add photos or use the starter set."; return; }
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false });
-    video.srcObject = stream; await video.play();
-    $("#startBtn").textContent = "Stop"; $("#snapBtn").disabled = false;
-    live = null; loop();
-  } catch (e) { $("#cue").textContent = "Camera unavailable"; $("#cue2").textContent = "Allow camera access, and open the page over https."; }
-}
-function stopLive() {
-  cancelAnimationFrame(raf); raf = 0;
-  if (stream) stream.getTracks().forEach(t => t.stop()); stream = null;
-  $("#startBtn").textContent = "Start camera"; $("#snapBtn").disabled = true; $("#stage").classList.remove("match");
-}
-$("#startBtn").onclick = () => stream ? stopLive() : startLive();
-function ema(prev, v, a) { return prev == null || v == null ? v : prev + (v - prev) * a; }
-function loop() {
-  raf = requestAnimationFrame(loop);
-  if (!video.videoWidth) return;
-  const dpr = Math.min(2, devicePixelRatio || 1), W = Math.round(ov.clientWidth * dpr), H = Math.round(ov.clientHeight * dpr);
-  if (ov.width !== W || ov.height !== H) { ov.width = W; ov.height = H; }
-  const [sx, sy, sw, sh] = cover(video.videoWidth, video.videoHeight, W, H);
-  octx.drawImage(video, sx, sy, sw, sh, 0, 0, W, H);
-  const now = performance.now();
-  if (now - lastA > 90) {
-    lastA = now;
-    sctx.drawImage(video, sx, sy, sw, sh, 0, 0, AW, AH);
-    const f = SceneAnalyzer.analyze(sctx.getImageData(0, 0, AW, AH));
-    const ok = f.horizon != null && f.hConf > .15;
-    if (!live) live = { ...f, seen: ok ? 1 : 0 };
-    else if (ok) {
-      const jump = live.horizon == null || Math.abs(f.horizon - live.horizon) > .15;
-      const a = jump ? 1 : .35;
-      ["horizon", "tilt", "sand", "warmth", "bright", "hConf"].forEach(k => live[k] = ema(live[k], f[k], a));
-      live.shore = f.shore == null ? null : ema(live.shore, f.shore, a);
-      live.shoreAngle = f.shoreAngle; live.sunX = f.sunX; live.sunY = f.sunY; live.seen = Math.min(live.seen + 1, 30);
-    } else { live.seen = Math.max(0, live.seen - 2); live.warmth = f.warmth; live.bright = f.bright; if (!live.seen) live.horizon = null; }
-  }
-  if (live) drawLive(W, H, dpr);
-}
-function arrow(x, y1, y2, col, dpr) {
-  octx.strokeStyle = col; octx.fillStyle = col; octx.lineWidth = 5 * dpr; octx.lineCap = "round";
-  octx.beginPath(); octx.moveTo(x, y1); octx.lineTo(x, y2); octx.stroke();
-  const d = Math.sign(y2 - y1) || 1, s = 14 * dpr;
-  octx.beginPath(); octx.moveTo(x, y2 + d * s * .3); octx.lineTo(x - s, y2 - d * s); octx.lineTo(x + s, y2 - d * s); octx.closePath(); octx.fill();
-}
-function gauge(x, top, h, v, s, label, dpr) {
-  const w = 12 * dpr;
-  octx.fillStyle = "#0008"; octx.fillRect(x - w / 2, top, w, h);
-  if (s) { octx.fillStyle = "#7fd49b88"; octx.fillRect(x - w / 2, top + s.lo * h, w, (s.hi - s.lo) * h); }
-  if (v != null) {
-    const inb = s && v >= s.lo && v <= s.hi;
-    octx.fillStyle = inb ? "#7fd49b" : "#f0a35e";
-    octx.beginPath(); octx.arc(x, top + clamp(v, 0, 1) * h, 8 * dpr, 0, 7); octx.fill();
-    octx.strokeStyle = "#000a"; octx.lineWidth = 2 * dpr; octx.stroke();
-  }
-  octx.fillStyle = "#fffc"; octx.font = `600 ${10 * dpr}px -apple-system,sans-serif`; octx.textAlign = "center";
-  octx.fillText(label, x, top - 6 * dpr);
-}
-function drawLive(W, H, dpr) {
-  const f = live, look = chosen === "auto" ? nearestLook(f) : looks.find(l => l.id === chosen) || looks[0];
-  if (!look) return;
-  const s = look.stats, hs = s.horizon, haveH = f.horizon != null && f.seen > 2;
-  // target horizon band
-  octx.fillStyle = "#7fd49b30"; octx.fillRect(0, hs.lo * H, W, (hs.hi - hs.lo) * H);
-  octx.strokeStyle = "#7fd49bcc"; octx.lineWidth = 2 * dpr; octx.setLineDash([10 * dpr, 8 * dpr]);
-  octx.beginPath(); octx.moveTo(0, hs.med * H); octx.lineTo(W, hs.med * H); octx.stroke();
-  // target shoreline
-  const wantSand = s.sandShare >= .5 && s.shore;
-  if (wantSand) { octx.strokeStyle = "#e6c88faa"; octx.beginPath(); const a = Math.tan((s.shoreAngle ? s.shoreAngle.med : 0) * Math.PI / 180) * W / 2; octx.moveTo(0, s.shore.med * H - a); octx.lineTo(W, s.shore.med * H + a); octx.stroke(); }
-  octx.setLineDash([]);
-  // thirds grid
-  octx.strokeStyle = "#ffffff22"; octx.lineWidth = 1 * dpr; octx.beginPath();
-  [1 / 3, 2 / 3].forEach(t => { octx.moveTo(t * W, 0); octx.lineTo(t * W, H); octx.moveTo(0, t * H); octx.lineTo(W, t * H); }); octx.stroke();
-
-  const top = H * .12, gh = H * .62;
-  gauge(30 * dpr, top, gh, haveH ? f.horizon : null, hs, "horizon", dpr);
-  if (wantSand && s.sand) { const m = .6; gauge(W - 30 * dpr, top, gh, haveH ? 1 - clamp(f.sand / m, 0, 1) : null, { lo: 1 - clamp(s.sand.hi / m, 0, 1), hi: 1 - clamp(s.sand.lo / m, 0, 1) }, "beach", dpr); }
-
-  let cue = "", cue2 = "", match = false;
-  if (!haveH) { cue = "Find the horizon"; cue2 = "Point at open water so the sea meets the sky across the frame."; }
-  else {
-    const t = f.tilt, y = f.horizon * H, dy = Math.tan(t * Math.PI / 180) * W / 2;
-    const level = Math.abs(t) <= .8, inH = f.horizon >= hs.lo && f.horizon <= hs.hi;
-    octx.strokeStyle = level ? (inH ? "#7fd49b" : "#ffffff") : "#f0a35e"; octx.lineWidth = 3 * dpr;
-    octx.beginPath(); octx.moveTo(0, y - dy); octx.lineTo(W, y + dy); octx.stroke();
-    // level bubble
-    const bx = W / 2, by = top * .55, bw = W * .28;
-    octx.fillStyle = "#0009"; octx.beginPath(); octx.roundRect(bx - bw / 2, by - 9 * dpr, bw, 18 * dpr, 9 * dpr); octx.fill();
-    octx.fillStyle = "#7fd49b55"; octx.fillRect(bx - bw * .06, by - 9 * dpr, bw * .12, 18 * dpr);
-    octx.fillStyle = level ? "#7fd49b" : "#f0a35e"; octx.beginPath(); octx.arc(bx + clamp(t / 6, -1, 1) * bw / 2, by, 7 * dpr, 0, 7); octx.fill();
-    octx.fillStyle = "#fff"; octx.font = `700 ${11 * dpr}px -apple-system,sans-serif`; octx.textAlign = "center"; octx.fillText(`${t >= 0 ? "" : "−"}${Math.abs(t).toFixed(1)}°`, bx, by + 24 * dpr);
-    // sand state
-    let sandMsg = null;
-    if (wantSand && s.sand) {
-      if (f.shore == null || f.sand < s.sand.lo) sandMsg = ["Step back from the water", `Your look keeps ${pct(s.sand.lo)}–${pct(s.sand.hi)} beach; you have ${pct(f.shore == null ? 0 : f.sand)}.`];
-      else if (f.sand > s.sand.hi) sandMsg = ["Walk closer to the water", `Your look keeps ${pct(s.sand.lo)}–${pct(s.sand.hi)} beach; you have ${pct(f.sand)}.`];
-    }
-    if (!level) { cue = t > 0 ? "Rotate ↻ dip the right edge" : "Rotate ↺ dip the left edge"; cue2 = `Horizon is ${Math.abs(t).toFixed(1)}° off level.`; }
-    else if (!inH) {
-      const goDown = f.horizon > hs.hi; // horizon too low in frame → point the phone down
-      arrow(W / 2, y, hs.med * H, "#ffffffdd", dpr);
-      cue = goDown ? "Tilt the phone down" : "Tilt the phone up"; cue2 = `Move the horizon into the green band (${pct(hs.lo)}–${pct(hs.hi)} from top).`;
-    } else if (sandMsg) { [cue, cue2] = sandMsg; }
-    else {
-      match = true; cue = "Hold it, shoot!";
-      const dw = band(f.warmth, s.warmth);
-      cue2 = dw < -.02 ? "Composition matches. Your look has warmer light: golden hour would nail it." : dw > .02 ? "Composition matches. Your look has cooler, bluer light." : `Matches your “${look.name}” look.`;
-    }
-  }
-  $("#stage").classList.toggle("match", match);
-  $("#cue").textContent = cue; $("#cue2").textContent = cue2;
-}
-$("#snapBtn").onclick = () => {
-  if (!video.videoWidth) return;
-  const c = document.createElement("canvas"), vw = video.videoWidth, vh = video.videoHeight;
-  const [sx, sy, sw, sh] = cover(vw, vh, 3, 4); c.width = Math.round(sw); c.height = Math.round(sh);
-  c.getContext("2d").drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
-  const im = new Image(); im.src = c.toDataURL("image/jpeg", .9); im.title = "Long-press to save";
-  const a = document.createElement("a"); a.href = im.src; a.download = "findmyview-" + Date.now() + ".jpg"; a.appendChild(im);
-  $("#shots").prepend(a);
-};
-
-/* ---------- check a shot ---------- */
-$("#checkInput").onchange = async e => {
-  const file = e.target.files[0]; e.target.value = ""; if (!file) return;
-  const img = await loadImg(file), f = analyzeImage(img);
-  const cv = $("#checkView"), w = img.naturalWidth, h = img.naturalHeight, s = Math.min(1, 1200 / Math.max(w, h));
-  cv.width = Math.round(w * s); cv.height = Math.round(h * s); cv.style.display = "block";
-  const x = cv.getContext("2d"); x.drawImage(img, 0, 0, cv.width, cv.height);
-  const res = $("#checkResult"); res.style.display = "block";
-  if (!profile || !looks.length) { res.innerHTML = "<div class='mut'>Build a profile first (Your style tab), then check shots against it.</div>"; return; }
-  const look = nearestLook(f), a = assess(f, look), W = cv.width, H = cv.height, lw = Math.max(2, W / 300);
-  x.fillStyle = "#7fd49b33"; x.fillRect(0, look.stats.horizon.lo * H, W, (look.stats.horizon.hi - look.stats.horizon.lo) * H);
-  if (f.horizon != null) {
-    const dy = Math.tan(f.tilt * Math.PI / 180) * W / 2;
-    x.strokeStyle = Math.abs(f.tilt) <= .8 ? "#fff" : "#f0a35e"; x.lineWidth = lw; x.setLineDash([lw * 5, lw * 3]);
-    x.beginPath(); x.moveTo(0, f.horizon * H - dy); x.lineTo(W, f.horizon * H + dy); x.stroke(); x.setLineDash([]);
-  }
-  const col = { ok: "var(--ok)", warn: "var(--warn)", bad: "var(--bad)" };
-  res.innerHTML = `<div class="row" style="align-items:baseline;gap:12px"><div class="score">${a.score == null ? "—" : a.score}</div><div class="mut">vs your “${look.name}” look</div></div>` +
-    a.fixes.map(q => `<div class="fix"><span class="dot" style="background:${col[q.sev]}"></span><span>${q.t}</span></div>`).join("");
-};
-
+/* ---------- boot (profile) ---------- */
 /* ---------- boot ---------- */
 profile = loadSaved();
 if (profile) relook();
 renderProfile();
 if (!profile) $("#refStatus").textContent = "Tip: tap “Use starter photos” to try it with a set of CC0 beach shots.";
 </script>
+<script src="js/app-live.js"></script>
 </body>
 </html>
