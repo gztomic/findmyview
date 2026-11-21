@@ -1,0 +1,160 @@
+{
+ "labels": [
+  "roll",
+  "pan",
+  "tilt",
+  "closer",
+  "keystone"
+ ],
+ "scale": [
+  8.0,
+  0.15,
+  0.15,
+  0.26236426446749106,
+  0.15
+ ],
+ "units": {
+  "roll": "degrees",
+  "pan": "fraction of width",
+  "tilt": "fraction of height",
+  "closer": "log zoom",
+  "keystone": "fraction"
+ },
+ "input": {
+  "name": "image",
+  "shape": [
+   1,
+   3,
+   256,
+   192
+  ],
+  "mean": [
+   0.485,
+   0.456,
+   0.406
+  ],
+  "std": [
+   0.229,
+   0.224,
+   0.225
+  ],
+  "layout": "NCHW RGB 0-1 then normalised"
+ },
+ "output": "fix[i] * scale[i] = correction in units",
+ "photos": {
+  "train": 909,
+  "val": 101
+ },
+ "epochs": 6,
+ "history": [
+  {
+   "epoch": 1,
+   "loss": 0.2599,
+   "val_mae": {
+    "roll": 2.1339,
+    "pan": 0.0313,
+    "tilt": 0.0324,
+    "closer": 0.0575,
+    "keystone": 0.0272
+   },
+   "val_direction_acc": {
+    "roll": 0.487,
+    "pan": 0.474,
+    "tilt": 0.493,
+    "closer": 0.503,
+    "keystone": 0.486
+   }
+  },
+  {
+   "epoch": 2,
+   "loss": 0.1852,
+   "val_mae": {
+    "roll": 1.9545,
+    "pan": 0.0298,
+    "tilt": 0.0299,
+    "closer": 0.0606,
+    "keystone": 0.0241
+   },
+   "val_direction_acc": {
+    "roll": 0.503,
+    "pan": 0.519,
+    "tilt": 0.507,
+    "closer": 0.645,
+    "keystone": 0.505
+   }
+  },
+  {
+   "epoch": 3,
+   "loss": 0.163,
+   "val_mae": {
+    "roll": 2.0319,
+    "pan": 0.0275,
+    "tilt": 0.0275,
+    "closer": 0.0505,
+    "keystone": 0.0209
+   },
+   "val_direction_acc": {
+    "roll": 0.685,
+    "pan": 0.5,
+    "tilt": 0.521,
+    "closer": 0.594,
+    "keystone": 0.495
+   }
+  },
+  {
+   "epoch": 4,
+   "loss": 0.1575,
+   "val_mae": {
+    "roll": 1.9126,
+    "pan": 0.0272,
+    "tilt": 0.0253,
+    "closer": 0.047,
+    "keystone": 0.0193
+   },
+   "val_direction_acc": {
+    "roll": 0.721,
+    "pan": 0.558,
+    "tilt": 0.549,
+    "closer": 0.6,
+    "keystone": 0.56
+   }
+  },
+  {
+   "epoch": 5,
+   "loss": 0.1542,
+   "val_mae": {
+    "roll": 1.7907,
+    "pan": 0.0266,
+    "tilt": 0.025,
+    "closer": 0.0473,
+    "keystone": 0.0191
+   },
+   "val_direction_acc": {
+    "roll": 0.817,
+    "pan": 0.519,
+    "tilt": 0.583,
+    "closer": 0.632,
+    "keystone": 0.587
+   }
+  },
+  {
+   "epoch": 6,
+   "loss": 0.1533,
+   "val_mae": {
+    "roll": 1.7974,
+    "pan": 0.0262,
+    "tilt": 0.025,
+    "closer": 0.0471,
+    "keystone": 0.0191
+   },
+   "val_direction_acc": {
+    "roll": 0.817,
+    "pan": 0.545,
+    "tilt": 0.576,
+    "closer": 0.652,
+    "keystone": 0.587
+   }
+  }
+ ],
+ "built": "2026-11-21"
+}
