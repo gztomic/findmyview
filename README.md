@@ -1,19 +1,37 @@
 # Find My View
 
-A phone-first shot coach for **scenery**: like [Find My Angle](https://gztomic.github.io/findmyangle/), but instead of a person's best angle it learns the composition of landscape photos you love and coaches you into the same shot. It starts with **beach and ocean**.
+A phone-first shot coach for travel photos: beaches, food, buildings, cities, landscapes. It recognises the scene, coaches you into a better framing live, scores the result, and learns your taste from the frames you keep. Sister project of [Find My Angle](https://gztomic.github.io/findmyangle/) (people).
 
 **Live:** https://gztomic.github.io/findmyview/
 
+## What it does
+| Tab | |
+|---|---|
+| **Coach** | Live camera with a scene chip (auto-detected or picked), level bubble, and per-scene guides and cues. **Smart burst** grabs 8 frames, scores them, suggests the best and logs which one you keep. |
+| **Check** | Scene, look score (0–10) and concrete fixes for any photo. |
+| **Beach style** | Learn your preferred horizon / beach / light from reference photos (v1 feature). |
+| **Data** | Your logged picks: the training data for your personal taste model. Export as JSON. |
+
 ## How it works
-1. **Your style:** add 10–50 reference photos, or tap *Use starter photos*. Each photo is analyzed on the device:
-   - horizon position and tilt (strongest straight colour step, searched over ±10°, refined to sub-degree)
-   - beach amount and shoreline angle (per-column sea/sand split)
-   - light: brightness, contrast, warmth, saturation; sun position; dark foreground framing
-2. **Looks:** photos are clustered (k-means, auto k by silhouette) into distinct compositions such as *Golden hour, low sky, a strip of beach*.
-3. **Live coach:** the camera view shows a level bubble, your horizon band, a beach meter and an arrow: level it, tilt until the horizon sits in the green band, step back or forward until the beach matches.
-4. **Check a shot:** scores a photo against your closest look and tells you what to change.
+**Rules (instant, no download):** `analyze.js` (horizon, beach, light), `js/geometry.js` (vertical lines → roll and keystone, symmetry, exposure, motion, phone attitude), `js/coach.js` (per-scene rules):
+- *horizon scenes:* level, horizon on a third (dramatic skies get two thirds), your beach style if set
+- *architecture:* verticals straight (roll + keystone), centre symmetrical facades
+- *food:* phone sensors guide a true overhead shot or a 30–55° diner's view; nudge toward window light
+- *night:* hold still; *all:* blown highlights / too dark
 
-Nothing is uploaded; it's a single static page (`index.html` + `analyze.js`), no build step.
+**Smart model (opt-in, ~90 MB once):** CLIP ViT-B/32 via transformers.js in the browser.
+- scene detection = similarity to scene prompts (`tools/models/scenes.src.json`, embedded by the *Build models* action → `models/scenes.json`)
+- look score = LAION aesthetic linear head (`models/aesthetic_vitb32.json`)
 
-## Starter photos
-`refs/beach/sources.json` lists 21 CC0 photos from the [WordPress Photo Directory](https://wordpress.org/photos/). The **Fetch reference photos** GitHub Action downloads them into `refs/beach/` (resized to 1200px) and writes `manifest.json`. It runs when `sources.json` changes, or manually from the Actions tab. To add more scenes later, create `refs/<scene>/sources.json` and run `python3 tools/fetch_refs.py <scene>`.
+**Trained framing model:** MobileNetV3-small (`models/correction/`, via ONNX Runtime Web) suggests pan / step closer / step back. Only outputs that were right ≥70% of the time on held-out photos are used.
+
+## Training data & models
+| Data | Source | Trains |
+|---|---|---|
+| CC0 travel photos per scene | `tools/train/fetch_dataset.py` (WordPress Photo Directory) | framing-correction model |
+| Self-generated perturbations | `tools/train/perturb.py`: rotate / shift / zoom / keystone a good photo, label = the fix | framing-correction model |
+| Your Smart-burst picks | Data tab → Export JSON | `tools/train/train_taste.py` → personal taste head (same format as the LAION head) |
+
+Run **Actions → Train correction model** (inputs: photos per scene, epochs). It fetches photos, trains on CPU, exports ONNX and commits `models/correction/`. For bigger models run `train_correction.py` on a GPU.
+
+Licences: training photos are CC0. The LAION aesthetic head's repository declares no licence; check before commercial use.
