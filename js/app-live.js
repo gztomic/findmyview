@@ -38,6 +38,25 @@ function renderSmartStatus(p, total, err) {
 }
 document.querySelectorAll(".smartBtn").forEach(b => b.onclick = () => { try { localStorage.setItem("fmv.smart", "1"); } catch (e) {} ensureSmart(); });
 
+/* ---------------- correction model (trained framing fixes) ---------------- */
+let Corr = null, corrState = "off", corrAvg = null, corrBusy = false, lastCorrT = 0;
+async function ensureCorr() {
+  if (corrState === "ready") return true;
+  if (corrState === "loading" || corrState === "none") return false;
+  corrState = "loading";
+  try { Corr = await import("./corrector.js"); await Corr.load(); corrState = "ready"; return true; }
+  catch (e) { corrState = /no trained/.test(e.message) ? "none" : "off"; return false; }
+}
+// turn model predictions into gentle tips (rules stay in charge of level / horizon / verticals)
+function aiCues(c, coachType) {
+  if (!c) return [];
+  const t = k => c.trusted && c.trusted.includes(k), out = [];
+  if (t("pan") && Math.abs(c.pan) > 0.05 && coachType !== "food") out.push({ level: "tip", text: c.pan > 0 ? "Pan a little right" : "Pan a little left", sub: "AI framing suggestion" });
+  if (t("closer") && Math.abs(c.closer) > 0.09) out.push({ level: "tip", text: c.closer > 0 ? "Step closer" : "Step back a little", sub: "AI framing suggestion" });
+  if (t("tilt") && Math.abs(c.tilt) > 0.06 && (coachType === "subject" || coachType === "people")) out.push({ level: "tip", text: c.tilt > 0 ? "Tilt up a little" : "Tilt down a little", sub: "AI framing suggestion" });
+  return out;
+}
+
 /* ---------------- scene chips ---------------- */
 let sceneMode = "auto";
 function renderSceneSeg(el, current, onPick) {
@@ -89,6 +108,7 @@ function cover(srcW, srcH, dstW, dstH) { const s = Math.max(dstW / srcW, dstH / 
 async function startLive() {
   startSensors();
   if (localStorage.getItem("fmv.smart") === "1") ensureSmart();
+  ensureCorr();
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false });
     lv.video.srcObject = stream; await lv.video.play();
@@ -155,6 +175,12 @@ function loop() {
   if (smartState === "ready" && now - lastSmart > 1200 && !smartBusy) {
     lastSmart = now; cctx.drawImage(v, sx, sy, sw, sh, 0, 0, 168, 224); smartTick();
   }
+  if (corrState === "ready" && !corrBusy && now - lastCorrT > 500) {
+    lastCorrT = now; corrBusy = true;
+    Corr.predict(v, cover(v.videoWidth, v.videoHeight, 3, 4)).then(c => {
+      if (c) corrAvg = corrAvg ? Object.fromEntries(Object.keys(c).map(k => [k, k === "trusted" ? c[k] : corrAvg[k] * .6 + c[k] * .4])) : c;
+    }).catch(() => {}).finally(() => corrBusy = false);
+  }
   if (L) drawLive(W, H, dpr);
 }
 
@@ -171,6 +197,7 @@ function runCoach(sc, meas, attitude) {
 function drawLive(W, H, dpr) {
   const sc = currentSceneInfo(), meas = { ...L, hz: L.seenH > 2 ? L.hz : { ...L.hz, horizon: null, hConf: 0 } };
   const r = runCoach(sc, meas, att); lastCoach = r;
+  const ai = aiCues(corrAvg, sc.coach); if (ai.length) { r.cues.push(...ai); }
   const font = (w, s) => `${w} ${s * dpr}px -apple-system,sans-serif`;
   // thirds
   octx.strokeStyle = "#ffffff22"; octx.lineWidth = dpr; octx.beginPath();
@@ -385,6 +412,7 @@ async function runCheck(img) {
   }
   if (!sc) sc = meas.vert.density > 0.09 ? { ...sceneById("building"), src: "guess", p: 0 } : { ...sceneById("landscape"), src: "guess", p: 0 };
   const r = runCoach(sc, meas, null);
+  if (await ensureCorr()) { const [cx, cy, cw, ch] = cover(w, h, 3, 4); r.cues.push(...aiCues(await Corr.predict(img, [cx, cy, cw, ch]), sc.coach)); }
   // overlay
   const W = cv.width, H = cv.height, lw = Math.max(2, W / 300);
   if (sc.coach === "horizon" && r.targets.horizon) {

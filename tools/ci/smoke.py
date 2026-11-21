@@ -25,8 +25,9 @@ async def main():
             photos = sorted(glob.glob(str(ROOT / "refs/beach/*.jpg")))[:4] + sorted(glob.glob(str(ROOT / "tests/fixtures/*")))
             photos += sorted(glob.glob(str(ROOT / "data/train/*/*.jpg")))[::97][:12]
             for f in photos:
+                await pg.evaluate("document.querySelector('#checkResult').textContent = ''")
                 await pg.set_input_files("#checkInput", f)
-                await pg.wait_for_function("!document.querySelector('#checkResult').textContent.includes('Analyzing')", timeout=120000)
+                await pg.wait_for_function("(t => t && !t.includes('Analyzing'))(document.querySelector('#checkResult').textContent)", timeout=120000)
                 txt = (await pg.inner_text("#checkResult")).replace("\n", " / ")
                 print(f"- {pathlib.Path(f).parent.name}/{pathlib.Path(f).name}: {txt[:260]}")
             await pg.screenshot(path=str(ROOT / "smoke.png"), full_page=True)
